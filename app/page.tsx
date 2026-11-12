@@ -4,20 +4,248 @@ import React, { useState, useEffect } from "react";
 
 type TabType = "home" | "explore" | "activity" | "workout";
 
-export default function FitFlowPrototype() {
-  const [activeTab, setActiveTab] = useState<TabType>("home");
-  const [isPlaying, setIsPlaying] = useState<boolean>(true);
-  const [seconds, setSeconds] = useState<number>(45);
+interface WorkoutItem {
+  id: string;
+  title: string;
+  category: string;
+  durationMin: number;
+  calories: number;
+  level: string;
+  image: string;
+  exercises: { name: string; durationSec: number; sets: number; reps: number; image: string }[];
+}
 
+interface ActivityRecord {
+  id: string;
+  title: string;
+  date: string;
+  month: string;
+  distance: number;
+  duration: string;
+  pace: string;
+  calories: number;
+}
+
+const WORKOUT_CATALOG: WorkoutItem[] = [
+  {
+    id: "full-body-blast",
+    title: "Full Body Blast - 30 min",
+    category: "ไฮอิท",
+    durationMin: 30,
+    calories: 280,
+    level: "กลาง",
+    image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=600&q=80",
+    exercises: [
+      {
+        name: "สควอท (Squat)",
+        durationSec: 45,
+        sets: 4,
+        reps: 12,
+        image: "https://images.unsplash.com/photo-1574680178050-55c6a6a96e0a?auto=format&fit=crop&w=700&q=80",
+      },
+      {
+        name: "วิดพื้น (Push-ups)",
+        durationSec: 45,
+        sets: 4,
+        reps: 10,
+        image: "https://images.unsplash.com/photo-1598971639058-fab3c3109a00?auto=format&fit=crop&w=700&q=80",
+      },
+      {
+        name: "แพลงก์ (Plank)",
+        durationSec: 60,
+        sets: 3,
+        reps: 1,
+        image: "https://images.unsplash.com/photo-1566241142559-40e1dab266c6?auto=format&fit=crop&w=700&q=80",
+      },
+    ],
+  },
+  {
+    id: "core-strength",
+    title: "Core Strength - 25 min",
+    category: "สร้างกล้ามเนื้อ",
+    durationMin: 25,
+    calories: 210,
+    level: "เริ่มต้น",
+    image: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=600&q=80",
+    exercises: [
+      {
+        name: "ครันช์ (Crunches)",
+        durationSec: 40,
+        sets: 3,
+        reps: 15,
+        image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=700&q=80",
+      },
+      {
+        name: "รัสเซียนทวิสต์ (Russian Twist)",
+        durationSec: 40,
+        sets: 3,
+        reps: 20,
+        image: "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=700&q=80",
+      },
+    ],
+  },
+  {
+    id: "morning-yoga",
+    title: "Morning Flow Yoga",
+    category: "โยคะ",
+    durationMin: 20,
+    calories: 120,
+    level: "เริ่มต้น",
+    image: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=600&q=80",
+    exercises: [
+      {
+        name: "ท่าสุนัขก้มหน้า (Downward Dog)",
+        durationSec: 60,
+        sets: 3,
+        reps: 1,
+        image: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=700&q=80",
+      },
+    ],
+  },
+  {
+    id: "cardio-burn",
+    title: "Cardio Fat Burn",
+    category: "คาร์ดิโอ",
+    durationMin: 35,
+    calories: 340,
+    level: "ท้าทาย",
+    image: "https://images.unsplash.com/photo-1538805060514-97d9cc17730c?auto=format&fit=crop&w=600&q=80",
+    exercises: [
+      {
+        name: "กระโดดตบ (Jumping Jacks)",
+        durationSec: 45,
+        sets: 4,
+        reps: 30,
+        image: "https://images.unsplash.com/photo-1601422407692-ec4eeec1d9b3?auto=format&fit=crop&w=700&q=80",
+      },
+    ],
+  },
+];
+
+export default function FitFlowApp() {
+  const [activeTab, setActiveTab] = useState<TabType>("home");
+
+  // ข้อมูลสถิติวันนี้ (บันทึกลงเครื่องจริง)
+  const [todayCalories, setTodayCalories] = useState<number>(350);
+  const [todayMinutes, setTodayMinutes] = useState<number>(45);
+  const dailyGoal = 500;
+
+  // ค้นหาและกรองหมวดหมู่
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("ทั้งหมด");
+
+  // ประวัติการวิ่ง (เพิ่มรายการใหม่ได้จริง)
+  const [activities, setActivities] = useState<ActivityRecord[]>([
+    {
+      id: "1",
+      title: "วิ่งช่วงเช้า",
+      date: "12",
+      month: "พ.ย.",
+      distance: 5.2,
+      duration: "32:15 นาที",
+      pace: "6:12 min/km",
+      calories: 350,
+    },
+  ]);
+  const [newDist, setNewDist] = useState<string>("");
+  const [newTime, setNewTime] = useState<string>("");
+  const [showRunModal, setShowRunModal] = useState<boolean>(false);
+
+  // ระบบเล่นท่าออกกำลังกายจริง
+  const [selectedWorkout, setSelectedWorkout] = useState<WorkoutItem>(WORKOUT_CATALOG[0]);
+  const [exerciseIdx, setExerciseIdx] = useState<number>(0);
+  const [currentSet, setCurrentSet] = useState<number>(1);
+  const [secondsLeft, setSecondsLeft] = useState<number>(WORKOUT_CATALOG[0].exercises[0].durationSec);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+
+  // โหลดข้อมูลที่เคยบันทึกไว้ในมือถือ
+  useEffect(() => {
+    const savedCal = localStorage.getItem("fitflow_cal");
+    const savedMin = localStorage.getItem("fitflow_min");
+    const savedActs = localStorage.getItem("fitflow_acts");
+    if (savedCal) setTodayCalories(Number(savedCal));
+    if (savedMin) setTodayMinutes(Number(savedMin));
+    if (savedActs) setActivities(JSON.parse(savedActs));
+  }, []);
+
+  // บันทึกข้อมูลลงมือถือเมื่อมีการอัปเดต
+  useEffect(() => {
+    localStorage.setItem("fitflow_cal", todayCalories.toString());
+    localStorage.setItem("fitflow_min", todayMinutes.toString());
+    localStorage.setItem("fitflow_acts", JSON.stringify(activities));
+  }, [todayCalories, todayMinutes, activities]);
+
+  // ระบบนับถอยหลังเวลาออกกำลังกายจริง
   useEffect(() => {
     let timer: ReturnType<typeof setInterval>;
-    if (activeTab === "workout" && isPlaying) {
+    if (activeTab === "workout" && isPlaying && secondsLeft > 0) {
       timer = setInterval(() => {
-        setSeconds((prev) => (prev < 90 ? prev + 1 : 0));
+        setSecondsLeft((prev) => prev - 1);
       }, 1000);
+    } else if (secondsLeft === 0 && isPlaying) {
+      setIsPlaying(false);
     }
     return () => clearInterval(timer);
-  }, [activeTab, isPlaying]);
+  }, [activeTab, isPlaying, secondsLeft]);
+
+  const startWorkout = (workout: WorkoutItem) => {
+    setSelectedWorkout(workout);
+    setExerciseIdx(0);
+    setCurrentSet(1);
+    setSecondsLeft(workout.exercises[0].durationSec);
+    setIsPlaying(true);
+    setActiveTab("workout");
+  };
+
+  const handleNextExercise = () => {
+    const currentEx = selectedWorkout.exercises[exerciseIdx];
+    if (currentSet < currentEx.sets) {
+      setCurrentSet((s) => s + 1);
+      setSecondsLeft(currentEx.durationSec);
+      setIsPlaying(true);
+    } else if (exerciseIdx < selectedWorkout.exercises.length - 1) {
+      const nextIdx = exerciseIdx + 1;
+      setExerciseIdx(nextIdx);
+      setCurrentSet(1);
+      setSecondsLeft(selectedWorkout.exercises[nextIdx].durationSec);
+      setIsPlaying(true);
+    } else {
+      // จบคลาสออกกำลังกาย -> บวกแคลอรี่และเวลาจริง!
+      setIsPlaying(false);
+      setTodayCalories((c) => c + selectedWorkout.calories);
+      setTodayMinutes((m) => m + selectedWorkout.durationMin);
+      alert(`ยอดเยี่ยม! คุณออกกำลังกายจบแล้ว (+${selectedWorkout.calories} kcal, +${selectedWorkout.durationMin} นาที)`);
+      setActiveTab("home");
+    }
+  };
+
+  const handleAddRun = (e: React.FormEvent) => {
+    e.preventDefault();
+    const dist = parseFloat(newDist);
+    const mins = parseFloat(newTime);
+    if (!dist || !mins) return;
+
+    const paceVal = (mins / dist).toFixed(2).replace(".", ":");
+    const burned = Math.round(dist * 65);
+
+    const newRecord: ActivityRecord = {
+      id: Date.now().toString(),
+      title: "วิ่งออกกำลังกาย",
+      date: new Date().getDate().toString(),
+      month: "พ.ย.",
+      distance: dist,
+      duration: `${mins} นาที`,
+      pace: `${paceVal} min/km`,
+      calories: burned,
+    };
+
+    setActivities([newRecord, ...activities]);
+    setTodayCalories((c) => c + burned);
+    setTodayMinutes((m) => m + Math.round(mins));
+    setNewDist("");
+    setNewTime("");
+    setShowRunModal(false);
+  };
 
   const formatTime = (sec: number) => {
     const m = Math.floor(sec / 60).toString().padStart(2, "0");
@@ -25,66 +253,44 @@ export default function FitFlowPrototype() {
     return `${m}:${s}`;
   };
 
+  const progressPercent = Math.min(100, Math.round((todayCalories / dailyGoal) * 100));
+  const currentExercise = selectedWorkout.exercises[exerciseIdx];
+  const nextExerciseName =
+    exerciseIdx < selectedWorkout.exercises.length - 1
+      ? selectedWorkout.exercises[exerciseIdx + 1].name
+      : "เสร็จสิ้นคลาส!";
+
+  const filteredWorkouts = WORKOUT_CATALOG.filter((w) => {
+    const matchCat = selectedCategory === "ทั้งหมด" || w.category === selectedCategory;
+    const matchSearch = w.title.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchCat && matchSearch;
+  });
+
   return (
-    <div className="min-h-screen bg-slate-200 flex flex-col items-center justify-center p-4 font-sans text-slate-800">
-      {/* ปุ่มสลับหน้าจอด้านบน */}
-      <div className="mb-4 flex flex-wrap gap-2 bg-white p-2 rounded-2xl shadow-sm">
-        {[
-          { id: "home", label: "1. หน้าหลัก (Home)" },
-          { id: "explore", label: "2. ค้นหา (Explore)" },
-          { id: "activity", label: "3. บันทึกวิ่ง (Activity)" },
-          { id: "workout", label: "4. เล่นท่าออกกำลังกาย (Player)" },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as TabType)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-              activeTab === tab.id
-                ? "bg-[#0d5c91] text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* กรอบสมาร์ทโฟน 390 x 882 px */}
-      <div className="w-[390px] h-[882px] bg-white rounded-[44px] shadow-2xl border-[10px] border-slate-900 overflow-hidden flex flex-col relative">
-        {/* Status Bar */}
-        <div className="bg-[#0d5c91] text-white px-6 pt-3 pb-2 flex justify-between items-center text-xs font-semibold shrink-0">
-          <span>9:41</span>
-          <div className="w-24 h-5 bg-slate-900 rounded-full" />
-          <div className="flex items-center gap-1.5">
-            <div className="flex items-end gap-0.5 h-2.5">
-              <span className="w-0.5 h-1 bg-white rounded-full" />
-              <span className="w-0.5 h-1.5 bg-white rounded-full" />
-              <span className="w-0.5 h-2 bg-white rounded-full" />
-              <span className="w-0.5 h-2.5 bg-white rounded-full" />
-            </div>
-            <div className="w-5 h-2.5 border border-white rounded-sm p-0.5 flex items-center">
-              <div className="w-full h-full bg-white rounded-[1px]" />
-            </div>
-          </div>
-        </div>
-
+    <div className="min-h-screen bg-slate-100 flex justify-center font-sans text-slate-800">
+      {/* คอนเทนเนอร์เต็มจอบนมือถือ (100dvh) และจัดกลางบนคอมพิวเตอร์ */}
+      <div className="w-full max-w-[430px] h-[100dvh] bg-white shadow-xl flex flex-col relative overflow-hidden">
         {/* ==================== 1. HOME SCREEN ==================== */}
         {activeTab === "home" && (
-          <div className="flex-1 flex flex-col overflow-y-auto bg-slate-50">
-            <div className="bg-gradient-to-b from-[#0d5c91] to-[#197bbd] text-white px-5 pt-2 pb-24 rounded-b-[32px]">
+          <div className="flex-1 flex flex-col overflow-y-auto bg-slate-50 pb-20">
+            <div className="bg-gradient-to-b from-[#0d5c91] to-[#197bbd] text-white px-5 pt-6 pb-24 rounded-b-[32px]">
               <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center gap-2">
-                  <div className="bg-white text-[#0d5c91] p-1.5 rounded-lg font-black text-xs">
+                  <div className="bg-white text-[#0d5c91] px-2 py-1 rounded-lg font-black text-xs">
                     FF
                   </div>
-                  <span className="font-extrabold tracking-wide text-lg">
-                    FITFLOW
-                  </span>
+                  <span className="font-extrabold tracking-wide text-lg">FITFLOW</span>
                 </div>
-                <button className="p-1.5 rounded-full hover:bg-white/10">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />
-                  </svg>
+                <button
+                  onClick={() => {
+                    if (confirm("รีเซ็ตข้อมูลสถิติวันนี้เป็น 0 หรือไม่?")) {
+                      setTodayCalories(0);
+                      setTodayMinutes(0);
+                    }
+                  }}
+                  className="text-[11px] bg-white/15 px-3 py-1 rounded-full hover:bg-white/25"
+                >
+                  รีเซ็ตสถิติ
                 </button>
               </div>
 
@@ -108,15 +314,18 @@ export default function FitFlowPrototype() {
               <div className="bg-white rounded-2xl p-4 shadow-md border border-slate-100 flex justify-between items-center">
                 <div className="space-y-1">
                   <h2 className="font-bold text-slate-900 text-base">สรุปวันนี้</h2>
-                  <p className="text-xs text-slate-500">วันที่ 12 ม.ค.</p>
+                  <p className="text-xs text-slate-500">เป้าหมาย: {dailyGoal} kcal</p>
                   <div className="pt-1 text-xs text-slate-700 space-y-0.5">
-                    <p>แคลอรี่: <span className="font-semibold">350 kcal</span></p>
-                    <p>ระยะเวลา: <span className="font-semibold">45 นาที</span></p>
+                    <p>
+                      แคลอรี่: <span className="font-bold text-[#0d5c91]">{todayCalories} kcal</span>
+                    </p>
+                    <p>
+                      ระยะเวลา: <span className="font-bold">{todayMinutes} นาที</span>
+                    </p>
                   </div>
                   <div className="pt-1">
-                    <p className="text-xs text-slate-600 mb-1">ความก้าวหน้า</p>
                     <span className="inline-block bg-[#1982a6] text-white text-[10px] font-medium px-3 py-1 rounded-full">
-                      ยอดเยี่ยม
+                      {progressPercent >= 100 ? "บรรลุเป้าหมายแล้ว!" : "กำลังไปได้สวย"}
                     </span>
                   </div>
                 </div>
@@ -131,8 +340,8 @@ export default function FitFlowPrototype() {
                       d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                     />
                     <path
-                      className="text-[#1994c2]"
-                      strokeDasharray="75, 100"
+                      className="text-[#1994c2] transition-all duration-500"
+                      strokeDasharray={`${progressPercent}, 100`}
                       strokeWidth="3.8"
                       strokeLinecap="round"
                       stroke="currentColor"
@@ -140,57 +349,44 @@ export default function FitFlowPrototype() {
                       d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                     />
                   </svg>
-                  <span className="absolute text-base font-bold text-slate-800">75%</span>
+                  <span className="absolute text-base font-bold text-slate-800">{progressPercent}%</span>
                 </div>
               </div>
             </div>
 
             {/* Recommended */}
             <div className="px-5 pt-6 pb-4">
-              <h2 className="font-bold text-slate-900 text-base mb-3">แนะนำออกกำลังกาย</h2>
-              <div className="flex gap-3 overflow-x-auto pb-2">
-                <div
-                  onClick={() => setActiveTab("workout")}
-                  className="min-w-[275px] bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 cursor-pointer"
+              <div className="flex justify-between items-center mb-3">
+                <h2 className="font-bold text-slate-900 text-base">แนะนำออกกำลังกาย</h2>
+                <button
+                  onClick={() => setActiveTab("explore")}
+                  className="text-xs font-semibold text-[#0d5c91]"
                 >
-                  <div className="h-36 overflow-hidden">
-                    <img
-                      src="https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=600&q=80"
-                      alt="Full Body Blast"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="p-3.5">
-                    <p className="text-[11px] text-[#0d5c91] font-semibold">แนะนำออกกำลังกาย</p>
-                    <h3 className="font-bold text-slate-900 text-base">Full Body Blast - 30 min</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">30 min</p>
-                    <div className="flex items-center gap-1.5 mt-2 text-xs text-slate-600">
-                      <span>Difficulty:</span>
-                      <span className="w-2 h-2 rounded-full bg-[#0d5c91]" />
-                      <span className="w-2 h-2 rounded-full bg-[#0d5c91]" />
-                      <span className="w-2 h-2 rounded-full bg-slate-300" />
-                      <span className="w-2 h-2 rounded-full bg-slate-300" />
+                  ดูทั้งหมด
+                </button>
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {WORKOUT_CATALOG.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => startWorkout(item)}
+                    className="min-w-[260px] bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 cursor-pointer active:scale-95 transition"
+                  >
+                    <div className="h-36 overflow-hidden relative">
+                      <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                      <span className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full">
+                        +{item.calories} kcal
+                      </span>
+                    </div>
+                    <div className="p-3.5">
+                      <p className="text-[11px] text-[#0d5c91] font-semibold">{item.category}</p>
+                      <h3 className="font-bold text-slate-900 text-base">{item.title}</h3>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {item.durationMin} นาที • ระดับ: {item.level}
+                      </p>
                     </div>
                   </div>
-                </div>
-
-                <div
-                  onClick={() => setActiveTab("workout")}
-                  className="min-w-[240px] bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 cursor-pointer"
-                >
-                  <div className="h-36 overflow-hidden">
-                    <img
-                      src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=600&q=80"
-                      alt="Core Power"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="p-3.5">
-                    <p className="text-[11px] text-[#0d5c91] font-semibold">แนะนำออกกำลังกาย</p>
-                    <h3 className="font-bold text-slate-900 text-base">Core Power - 20 min</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">20 min</p>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </div>
@@ -198,107 +394,67 @@ export default function FitFlowPrototype() {
 
         {/* ==================== 2. EXPLORE SCREEN ==================== */}
         {activeTab === "explore" && (
-          <div className="flex-1 flex flex-col overflow-y-auto bg-white">
-            <div className="bg-[#0d5c91] text-white px-5 pt-2 pb-5">
+          <div className="flex-1 flex flex-col overflow-y-auto bg-white pb-20">
+            <div className="bg-[#0d5c91] text-white px-5 pt-6 pb-5">
               <h1 className="text-lg font-bold mb-3">ค้นหาการออกกำลังกาย</h1>
-              <div className="flex gap-2">
-                <div className="flex-1 bg-white rounded-xl px-3 py-2 flex items-center gap-2 text-slate-700">
-                  <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="m21 21-4.3-4.3" />
-                  </svg>
-                  <input
-                    type="text"
-                    placeholder="ค้นหาท่าออกกำลังกาย..."
-                    className="bg-transparent text-xs w-full focus:outline-none"
-                  />
-                </div>
-                <button className="bg-[#1a82c4] p-2.5 rounded-xl text-white">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <line x1="4" y1="21" x2="4" y2="14" />
-                    <line x1="4" y1="10" x2="4" y2="3" />
-                    <line x1="12" y1="21" x2="12" y2="12" />
-                    <line x1="12" y1="8" x2="12" y2="3" />
-                    <line x1="20" y1="21" x2="20" y2="16" />
-                    <line x1="20" y1="12" x2="20" y2="3" />
-                  </svg>
-                </button>
+              <div className="bg-white rounded-xl px-3 py-2.5 flex items-center gap-2 text-slate-700">
+                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="พิมพ์ชื่อคลาสออกกำลังกาย..."
+                  className="bg-transparent text-xs w-full focus:outline-none"
+                />
               </div>
             </div>
 
             <div className="p-5 space-y-5">
-              <div>
-                <h2 className="font-bold text-slate-900 text-sm mb-3">ตามหมวดหมู่</h2>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    {
-                      title: "คาร์ดิโอ",
-                      sub: "คาร์ดิโอ (15 วิดีโอ)",
-                      img: "https://images.unsplash.com/photo-1538805060514-97d9cc17730c?auto=format&fit=crop&w=400&q=80",
-                    },
-                    {
-                      title: "สร้างกล้ามเนื้อ",
-                      sub: "กล้ามเนื้อ (18 วิดีโอ)",
-                      img: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&w=400&q=80",
-                    },
-                    {
-                      title: "โยคะ",
-                      sub: "โยคะ (11 วิดีโอ)",
-                      img: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=400&q=80",
-                    },
-                    {
-                      title: "ไฮอิท",
-                      sub: "HIIT (9 วิดีโอ)",
-                      img: "https://images.unsplash.com/photo-1601422407692-ec4eeec1d9b3?auto=format&fit=crop&w=400&q=80",
-                    },
-                  ].map((item, idx) => (
-                    <div key={idx} onClick={() => setActiveTab("workout")} className="cursor-pointer">
-                      <div className="h-24 rounded-xl overflow-hidden mb-1.5 bg-slate-100">
-                        <img src={item.img} alt={item.title} className="w-full h-full object-cover" />
-                      </div>
-                      <h3 className="font-bold text-xs text-slate-900">{item.title}</h3>
-                      <p className="text-[11px] text-slate-500">{item.sub}</p>
-                    </div>
-                  ))}
-                </div>
+              {/* Filter Pills */}
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {["ทั้งหมด", "คาร์ดิโอ", "สร้างกล้ามเนื้อ", "โยคะ", "ไฮอิท"].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${
+                      selectedCategory === cat
+                        ? "bg-[#0d5c91] text-white"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
               </div>
 
-              <div>
-                <h2 className="font-bold text-slate-900 text-sm mb-3">ยอดนิยมประจำสัปดาห์</h2>
-                <div className="space-y-3">
-                  {[
-                    {
-                      name: "Full Body Blast",
-                      time: "30 min",
-                      level: "ระดับ: กลาง",
-                      leftImg: "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=300&q=80",
-                      rightImg: "https://images.unsplash.com/photo-1574680096145-d05b474e2155?auto=format&fit=crop&w=300&q=80",
-                    },
-                    {
-                      name: "Core Strength",
-                      time: "25 min",
-                      level: "ระดับ: เริ่มต้น",
-                      leftImg: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=300&q=80",
-                      rightImg: "https://images.unsplash.com/photo-1599058917212-d750089bc07e?auto=format&fit=crop&w=300&q=80",
-                    },
-                  ].map((row, idx) => (
-                    <div
-                      key={idx}
-                      onClick={() => setActiveTab("workout")}
-                      className="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-100 cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3">
-                        <img src={row.leftImg} alt={row.name} className="w-14 h-14 rounded-lg object-cover" />
-                        <div>
-                          <h4 className="font-bold text-xs text-slate-900">{row.name}</h4>
-                          <p className="text-[11px] text-slate-600">{row.time}</p>
-                          <p className="text-[11px] text-slate-500">{row.level}</p>
-                        </div>
+              {/* Workout List */}
+              <div className="space-y-3">
+                {filteredWorkouts.map((w) => (
+                  <div
+                    key={w.id}
+                    onClick={() => startWorkout(w)}
+                    className="flex items-center justify-between bg-slate-50 p-2.5 rounded-2xl border border-slate-100 cursor-pointer active:scale-98 transition"
+                  >
+                    <div className="flex items-center gap-3">
+                      <img src={w.image} alt={w.title} className="w-16 h-16 rounded-xl object-cover" />
+                      <div>
+                        <span className="text-[10px] font-bold text-[#0d5c91]">{w.category}</span>
+                        <h4 className="font-bold text-sm text-slate-900">{w.title}</h4>
+                        <p className="text-xs text-slate-500">
+                          {w.durationMin} นาที • เผาผลาญ {w.calories} kcal
+                        </p>
                       </div>
-                      <img src={row.rightImg} alt="Preview" className="w-16 h-14 rounded-lg object-cover" />
                     </div>
-                  ))}
-                </div>
+                    <div className="bg-[#0d5c91] text-white p-2 rounded-full">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -306,38 +462,46 @@ export default function FitFlowPrototype() {
 
         {/* ==================== 3. ACTIVITY LOG SCREEN ==================== */}
         {activeTab === "activity" && (
-          <div className="flex-1 flex flex-col overflow-y-auto bg-white">
-            <div className="bg-[#0d5c91] text-white px-4 py-3 flex items-center justify-between">
-              <button onClick={() => setActiveTab("home")} className="p-1">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path d="m15 18-6-6 6-6" />
-                </svg>
+          <div className="flex-1 flex flex-col overflow-y-auto bg-white pb-20">
+            <div className="bg-[#0d5c91] text-white px-5 pt-6 pb-4 flex items-center justify-between">
+              <h1 className="font-bold text-lg">บันทึกกิจกรรม</h1>
+              <button
+                onClick={() => setShowRunModal(true)}
+                className="bg-white text-[#0d5c91] text-xs font-bold px-3 py-1.5 rounded-full shadow"
+              >
+                + บันทึกการวิ่ง
               </button>
-              <h1 className="font-bold text-base">วิ่งช่วงเช้า</h1>
-              <span className="font-bold tracking-widest">•••</span>
             </div>
 
             <div className="p-5 space-y-4">
+              {/* Latest Run Summary */}
               <div className="flex items-center gap-4">
                 <div className="w-16 rounded-xl overflow-hidden border border-slate-200 text-center shadow-sm">
                   <div className="bg-[#0d5c91] h-3" />
                   <div className="py-1.5">
-                    <p className="text-lg font-extrabold text-slate-900 leading-none">12</p>
-                    <p className="text-xs text-slate-600 mt-0.5">ม.ค.</p>
+                    <p className="text-lg font-extrabold text-slate-900 leading-none">{activities[0]?.date}</p>
+                    <p className="text-xs text-slate-600 mt-0.5">{activities[0]?.month}</p>
                   </div>
                 </div>
                 <div className="text-xs space-y-1">
-                  <h2 className="font-bold text-sm text-slate-900">Running</h2>
-                  <p className="text-slate-600">ระยะทาง: <span className="font-semibold">5.2 กม.</span></p>
-                  <p className="text-slate-600">เวลา: <span className="font-semibold">32:15 นาที</span></p>
-                  <p className="text-slate-600">Pace: <span className="font-semibold">6:12 min/km</span></p>
+                  <h2 className="font-bold text-sm text-slate-900">{activities[0]?.title}</h2>
+                  <p className="text-slate-600">
+                    ระยะทาง: <span className="font-semibold">{activities[0]?.distance} กม.</span>
+                  </p>
+                  <p className="text-slate-600">
+                    เวลา: <span className="font-semibold">{activities[0]?.duration}</span>
+                  </p>
+                  <p className="text-slate-600">
+                    Pace: <span className="font-semibold">{activities[0]?.pace}</span>
+                  </p>
                 </div>
               </div>
 
-              <div className="relative h-64 rounded-2xl overflow-hidden border border-slate-200 bg-slate-100">
+              {/* Map Visual */}
+              <div className="relative h-56 rounded-2xl overflow-hidden border border-slate-200 bg-slate-100">
                 <img
                   src="https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=800&q=80"
-                  alt="Lumpini Park Route"
+                  alt="Route Map"
                   className="w-full h-full object-cover brightness-90"
                 />
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 300 220">
@@ -351,87 +515,139 @@ export default function FitFlowPrototype() {
                   <circle cx="55" cy="170" r="6" fill="#0d5c91" />
                   <circle cx="230" cy="55" r="6" fill="#1ca3ec" />
                 </svg>
-                <span className="absolute top-2.5 left-2.5 bg-white/90 text-slate-800 text-[11px] font-semibold px-2.5 py-0.5 rounded-md shadow">
-                  Map
-                </span>
-                <span className="absolute top-16 right-8 bg-white text-slate-900 text-[10px] font-bold px-2 py-0.5 rounded shadow">
-                  End
-                </span>
-                <span className="absolute bottom-14 left-6 bg-white text-slate-900 text-[10px] font-bold px-2 py-0.5 rounded shadow">
-                  Start
-                </span>
-                <span className="absolute bottom-8 left-24 text-white text-xs font-bold drop-shadow">
+                <span className="absolute bottom-3 left-4 text-white text-xs font-bold drop-shadow">
                   Lumpini Park
                 </span>
-                <div className="absolute bottom-2.5 right-2.5 bg-white/95 rounded-xl px-2.5 py-1.5 text-[10px] font-semibold text-slate-700 shadow space-y-0.5">
+                <div className="absolute bottom-2.5 right-2.5 bg-white/95 rounded-xl px-2.5 py-1.5 text-[10px] font-semibold text-slate-700 shadow">
                   <p>❤️ Avg. HR: 148 bpm</p>
-                  <p>⛰️ Elevation: 24 m</p>
+                  <p>🔥 เผาผลาญ: {activities[0]?.calories} kcal</p>
                 </div>
               </div>
 
+              {/* History List */}
               <div>
-                <h3 className="font-bold text-sm text-slate-900 mb-2">Splits/Intervals</h3>
+                <h3 className="font-bold text-sm text-slate-900 mb-2">ประวัติทั้งหมด ({activities.length} รายการ)</h3>
                 <div className="space-y-2 text-xs">
-                  {["กม. 1", "กม. 2"].map((km, idx) => (
-                    <div key={idx} className="grid grid-cols-3 bg-sky-50/80 border border-sky-100 rounded-xl p-2.5">
+                  {activities.map((act) => (
+                    <div
+                      key={act.id}
+                      className="grid grid-cols-3 bg-sky-50/80 border border-sky-100 rounded-xl p-2.5"
+                    >
                       <div>
-                        <p className="text-[10px] text-slate-400">Split</p>
-                        <p className="font-semibold text-slate-800">{km}</p>
+                        <p className="text-[10px] text-slate-400">วันที่ {act.date} {act.month}</p>
+                        <p className="font-semibold text-slate-800">{act.title}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-slate-400">Km</p>
-                        <p className="font-semibold text-slate-800">1.0 km</p>
+                        <p className="text-[10px] text-slate-400">ระยะทาง</p>
+                        <p className="font-semibold text-slate-800">{act.distance} km</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-slate-400">min/km</p>
-                        <p className="font-semibold text-[#0d5c91]">6:05 min/km</p>
+                        <p className="text-[10px] text-slate-400">Pace</p>
+                        <p className="font-semibold text-[#0d5c91]">{act.pace}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
+
+            {/* Modal เพิ่มบันทึกวิ่งจริง */}
+            {showRunModal && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-5 z-50">
+                <form onSubmit={handleAddRun} className="bg-white w-full rounded-2xl p-5 space-y-4 shadow-xl">
+                  <h3 className="font-bold text-base text-slate-900">บันทึกผลการวิ่งใหม่</h3>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600">ระยะทาง (กิโลเมตร)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      required
+                      placeholder="เช่น 5.0"
+                      value={newDist}
+                      onChange={(e) => setNewDist(e.target.value)}
+                      className="w-full mt-1 border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600">เวลาที่ใช้ (นาที)</label>
+                    <input
+                      type="number"
+                      required
+                      placeholder="เช่น 30"
+                      value={newTime}
+                      onChange={(e) => setNewTime(e.target.value)}
+                      className="w-full mt-1 border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowRunModal(false)}
+                      className="flex-1 py-2.5 rounded-xl bg-slate-100 text-xs font-bold text-slate-600"
+                    >
+                      ยกเลิก
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 py-2.5 rounded-xl bg-[#0d5c91] text-xs font-bold text-white"
+                    >
+                      บันทึกข้อมูล
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
         )}
 
         {/* ==================== 4. WORKOUT PLAYER SCREEN ==================== */}
         {activeTab === "workout" && (
           <div className="flex-1 flex flex-col bg-white">
-            <div className="bg-[#0d5c91] text-white px-4 py-3 flex items-center justify-between">
-              <button onClick={() => setActiveTab("home")} className="p-1">
+            <div className="bg-[#0d5c91] text-white px-4 pt-6 pb-3 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  setIsPlaying(false);
+                  setActiveTab("home");
+                }}
+                className="p-1"
+              >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                   <path d="m15 18-6-6 6-6" />
                 </svg>
               </button>
-              <h1 className="font-bold text-base">Full Body Tone</h1>
+              <h1 className="font-bold text-base truncate px-2">{selectedWorkout.title}</h1>
               <div className="w-6" />
             </div>
 
             <div className="p-5 flex-1 flex flex-col justify-between">
               <div>
-                <div className="h-64 rounded-2xl overflow-hidden shadow-md bg-slate-100">
+                <div className="h-60 rounded-2xl overflow-hidden shadow-md bg-slate-100">
                   <img
-                    src="https://images.unsplash.com/photo-1574680178050-55c6a6a96e0a?auto=format&fit=crop&w=700&q=80"
-                    alt="Squat Exercise"
+                    src={currentExercise.image}
+                    alt={currentExercise.name}
                     className="w-full h-full object-cover"
                   />
                 </div>
                 <h2 className="text-center font-bold text-lg text-slate-900 mt-4">
-                  สควอท (Squat)
+                  {currentExercise.name}
                 </h2>
               </div>
 
               <div>
                 <div className="flex justify-between items-baseline mb-2">
                   <span className="text-3xl font-extrabold text-[#1679b8]">
-                    {formatTime(seconds)}
+                    {formatTime(secondsLeft)}
                   </span>
-                  <span className="text-lg font-semibold text-slate-400">1:30</span>
+                  <span className="text-sm font-semibold text-slate-400">
+                    เหลือเวลาอีก
+                  </span>
                 </div>
                 <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-[#1989cc] transition-all duration-300"
-                    style={{ width: `${(seconds / 90) * 100}%` }}
+                    style={{
+                      width: `${((currentExercise.durationSec - secondsLeft) / currentExercise.durationSec) * 100}%`,
+                    }}
                   />
                 </div>
               </div>
@@ -439,22 +655,27 @@ export default function FitFlowPrototype() {
               <div className="grid grid-cols-2 divide-x divide-slate-200 text-center py-2">
                 <div>
                   <p className="text-xs text-slate-500">Set</p>
-                  <p className="text-base font-bold text-slate-900 mt-0.5">2 of 4</p>
+                  <p className="text-base font-bold text-slate-900 mt-0.5">
+                    {currentSet} of {currentExercise.sets}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-500">Reps</p>
-                  <p className="text-base font-bold text-slate-900 mt-0.5">8 of 12</p>
+                  <p className="text-base font-bold text-slate-900 mt-0.5">
+                    {currentExercise.reps} ครั้ง
+                  </p>
                 </div>
               </div>
 
               <div className="pb-4 text-center">
                 <p className="text-xs font-semibold text-slate-600 mb-5">
-                  ท่าถัดไป: วิดพื้น (Push-ups)
+                  ท่าถัดไป: {nextExerciseName}
                 </p>
                 <div className="flex items-center justify-center gap-8">
                   <button
-                    onClick={() => setSeconds(0)}
+                    onClick={() => setSecondsLeft(currentExercise.durationSec)}
                     className="p-3 text-[#0d5c91] hover:bg-slate-100 rounded-full"
+                    title="เริ่มจับเวลาใหม่"
                   >
                     <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M6 6h2v12H6zm3.5 6 8.5 6V6z" />
@@ -462,7 +683,7 @@ export default function FitFlowPrototype() {
                   </button>
                   <button
                     onClick={() => setIsPlaying(!isPlaying)}
-                    className="w-16 h-16 rounded-full bg-[#0d5c91] text-white flex items-center justify-center shadow-lg"
+                    className="w-16 h-16 rounded-full bg-[#0d5c91] text-white flex items-center justify-center shadow-lg active:scale-95 transition"
                   >
                     {isPlaying ? (
                       <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
@@ -475,8 +696,9 @@ export default function FitFlowPrototype() {
                     )}
                   </button>
                   <button
-                    onClick={() => setSeconds(45)}
+                    onClick={handleNextExercise}
                     className="p-3 text-[#0d5c91] hover:bg-slate-100 rounded-full"
+                    title="เซ็ตถัดไป / ท่าถัดไป"
                   >
                     <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                       <path d="m6 18 8.5-6L6 6v12zM16 6v12h2V6h-2z" />
@@ -490,7 +712,7 @@ export default function FitFlowPrototype() {
 
         {/* ==================== BOTTOM TAB BAR ==================== */}
         {activeTab !== "workout" && (
-          <div className="bg-white border-t border-slate-200 px-6 py-2.5 flex justify-between items-center shrink-0">
+          <div className="bg-white border-t border-slate-200 px-6 py-2.5 flex justify-between items-center fixed bottom-0 w-full max-w-[430px]">
             <button
               onClick={() => setActiveTab("home")}
               className={`flex flex-col items-center gap-1 text-[10px] font-semibold ${
@@ -526,14 +748,14 @@ export default function FitFlowPrototype() {
               <span>Activity</span>
             </button>
             <button
-              onClick={() => setActiveTab("workout")}
+              onClick={() => startWorkout(WORKOUT_CATALOG[0])}
               className="flex flex-col items-center gap-1 text-[10px] font-semibold text-slate-400"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
+                <circle cx="12" cy="12" r="10" />
+                <polygon points="10 8 16 12 10 16 10 8" />
               </svg>
-              <span>Profile</span>
+              <span>Workout</span>
             </button>
           </div>
         )}
